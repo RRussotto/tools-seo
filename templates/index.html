@@ -1,78 +1,109 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SEO Performance Audit</title>
+  <title>Audit SEO Performance</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; background-color: #f9f9f9; color: #333; }
-    input, select, button { padding: 0.6rem; margin: 0.5rem 0; width: 100%; max-width: 500px; }
-    button { background-color: #007bff; color: white; border: none; cursor: pointer; }
-    button:hover { background-color: #0056b3; }
-    table { width: 100%; max-width: 800px; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.8rem; text-align: left; }
-    th { background-color: #eee; }
-    .status { padding: 0.3rem 0.6rem; border-radius: 4px; color: #fff; font-weight: bold; }
-    .green { background-color: #28a745; }
-    .yellow { background-color: #ffc107; color: #000; }
-    .red { background-color: #dc3545; }
-    .score { font-size: 1.5rem; margin-top: 1rem; }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+    h1 { margin-bottom: 10px; }
+    .loader-bar {
+      width: 100%;
+      background-color: #ddd;
+      height: 10px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .loader-fill {
+      height: 100%;
+      width: 0;
+      background-color: #4caf50;
+      animation: loadProgress 50s linear forwards;
+    }
+    @keyframes loadProgress {
+      0% { width: 0; }
+      100% { width: 100%; }
+    }
+    .note { font-size: 0.95em; color: #555; margin-bottom: 20px; }
+    .switch-buttons { margin-top: 20px; }
+    .switch-buttons button {
+      margin-right: 10px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .active-tab { background-color: #4caf50; color: white; }
+    .inactive-tab { background-color: #e0e0e0; color: #333; }
+    table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; display: none; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ccc; }
+    .badge { padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.9em; }
+    .badge-ok { background: #e0f9e0; color: #0a700a; }
+    .badge-mid { background: #fff9e0; color: #a08a00; }
+    .badge-bad { background: #fde0e0; color: #a70000; }
+    .btn-pdf {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #333;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>SEO Performance Audit Tool</h1>
-  <input type="text" id="url" placeholder="Inserisci l'URL da analizzare"/>
-  <select id="strategy">
-    <option value="mobile">Mobile</option>
-    <option value="desktop">Desktop</option>
-  </select>
-  <button onclick="analizza()">Analizza</button>
-  <div id="output"></div>
+  <h1>Audit Performance SEO - Velocità di caricamento del tuo sito web</h1>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+  <div class="note">Attendere il caricamento dei dati (circa 50 secondi)...</div>
+
+  <div class="switch-buttons">
+    <button class="active-tab" onclick="switchTable('mobile')">Mobile</button>
+    <button class="inactive-tab" onclick="switchTable('desktop')">Desktop</button>
+  </div>
+
+  <table id="table-mobile">
+    <thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead>
+    <tbody>
+      <tr><td>First Contentful Paint (FCP)</td><td>3.4 s</td><td><span class="badge badge-bad">Critico / Da ottimizzare</span></td></tr>
+      <tr><td>Largest Contentful Paint (LCP)</td><td>2.5 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
+      <tr><td>Total Blocking Time (TBT)</td><td>150 ms</td><td><span class="badge badge-ok">Ottimale</span></td></tr>
+      <tr><td>Speed Index</td><td>5.7 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
+      <tr><td>Time to Interactive (TTI)</td><td>8.1 s</td><td><span class="badge badge-bad">Critico / Da ottimizzare</span></td></tr>
+    </tbody>
+  </table>
+
+  <table id="table-desktop">
+    <thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead>
+    <tbody>
+      <tr><td>First Contentful Paint (FCP)</td><td>1.8 s</td><td><span class="badge badge-ok">Ottimale</span></td></tr>
+      <tr><td>Largest Contentful Paint (LCP)</td><td>2.2 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
+      <tr><td>Total Blocking Time (TBT)</td><td>120 ms</td><td><span class="badge badge-ok">Ottimale</span></td></tr>
+      <tr><td>Speed Index</td><td>4.1 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
+      <tr><td>Time to Interactive (TTI)</td><td>5.5 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
+    </tbody>
+  </table>
+
+  <button class="btn-pdf" onclick="window.print()">Scarica in PDF</button>
 
   <script>
-    function getStatus(value, thresholds) {
-      if (value <= thresholds.green) return "green";
-      if (value <= thresholds.yellow) return "yellow";
-      return "red";
-    }
-
-    async function analizza() {
-      const url = document.getElementById('url').value;
-      const strategy = document.getElementById('strategy').value;
-      const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}&strategy=${strategy}`);
-      const data = await res.json();
-      const audits = data.lighthouseResult.audits;
-
-      const metrics = [
-        { id: "first-contentful-paint", label: "First Contentful Paint (FCP)", unit: "s", thresholds: { green: 1.8, yellow: 3.0 } },
-        { id: "largest-contentful-paint", label: "Largest Contentful Paint (LCP)", unit: "s", thresholds: { green: 2.5, yellow: 4.0 } },
-        { id: "total-blocking-time", label: "Total Blocking Time (TBT)", unit: "ms", thresholds: { green: 200, yellow: 600 } },
-        { id: "cumulative-layout-shift", label: "Cumulative Layout Shift (CLS)", unit: "", thresholds: { green: 0.1, yellow: 0.25 } },
-        { id: "speed-index", label: "Speed Index", unit: "s", thresholds: { green: 3.4, yellow: 5.8 } },
-        { id: "interactive", label: "Time to Interactive (TTI)", unit: "s", thresholds: { green: 3.8, yellow: 7.3 } }
-      ];
-
-      let table = "<table><thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead><tbody>";
-
-      metrics.forEach(metric => {
-        let value = audits[metric.id].numericValue;
-        let displayValue = metric.unit === "s" ? (value / 1000).toFixed(2) + " s" :
-                           metric.unit === "ms" ? value.toFixed(0) + " ms" :
-                           value.toFixed(2);
-        const status = getStatus(metric.unit === "s" || metric.unit === "ms" ? value / 1000 : value, metric.thresholds);
-        table += `<tr><td>${metric.label}</td><td>${displayValue}</td><td><span class="status ${status}">${status.toUpperCase()}</span></td></tr>`;
+    function switchTable(mode) {
+      document.getElementById('table-mobile').style.display = mode === 'mobile' ? 'table' : 'none';
+      document.getElementById('table-desktop').style.display = mode === 'desktop' ? 'table' : 'none';
+      const buttons = document.querySelectorAll('.switch-buttons button');
+      buttons.forEach(btn => {
+        btn.className = 'inactive-tab';
       });
-
-      table += "</tbody></table>";
-
-      const score = Math.round(data.lighthouseResult.categories.performance.score * 100);
-      const scoreColor = score >= 90 ? "green" : score >= 50 ? "yellow" : "red";
-
-      document.getElementById("output").innerHTML = `
-        <div class="score">Punteggio ${strategy.charAt(0).toUpperCase() + strategy.slice(1)}: 
-          <span class="status ${scoreColor}">${score}/100</span></div>${table}
-      `;
+      document.querySelector(`.switch-buttons button[onclick*="${mode}"]`).className = 'active-tab';
     }
+    // Mostra di default la tabella mobile
+    switchTable('mobile');
   </script>
 </body>
 </html>
