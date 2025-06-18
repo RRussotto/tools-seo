@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SEO Audit Tool</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+  <div class="container">
+    <h1>SEO Audit Tool</h1>
+
+    <section>
+      <h2>Analisi PageSpeed</h2>
+      <input type="text" id="urlInput" placeholder="Inserisci URL">
+      <button onclick="runPerformance()">Analizza</button>
+      <pre id="performanceResult"></pre>
+    </section>
+
+    <section>
+      <h2>Keyword Suggestion</h2>
+      <input type="text" id="keywordInput" placeholder="Parola chiave">
+      <button onclick="runKeyword()">Suggerisci</button>
+      <pre id="keywordResult"></pre>
+    </section>
+  </div>
+
+<script>
+function runPerformance() {
+  const url = document.getElementById("urlInput").value;
+  fetch("/api/performance?url=" + encodeURIComponent(url))
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("performanceResult").textContent = JSON.stringify(data.lighthouseResult.categories.performance, null, 2);
+    });
+}
+
+function runKeyword() {
+  const query = document.getElementById("keywordInput").value;
+  fetch("/api/keywords?query=" + encodeURIComponent(query))
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("keywordResult").textContent = JSON.stringify(data.keyword, null, 2);
+    });
+}
+</script>
+</body>
+</html>
