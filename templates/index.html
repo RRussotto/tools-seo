@@ -15,6 +15,10 @@
     th, td { border: 1px solid #ddd; padding: 0.8rem; text-align: left; }
     th { background-color: #f0f0f0; }
     .chart-container { width: 100%; max-width: 600px; margin: 2rem 0; }
+    .score-box { font-size: 1.2rem; font-weight: bold; padding: 1rem; margin-top: 1rem; border-radius: 8px; display: inline-block; }
+    .score-green { background-color: #d4edda; color: #155724; }
+    .score-yellow { background-color: #fff3cd; color: #856404; }
+    .score-red { background-color: #f8d7da; color: #721c24; }
   </style>
 </head>
 <body>
@@ -26,55 +30,107 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script>
     async function analizzaPerformance() {
       const url = document.getElementById('url').value;
-      const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}`);
-      const data = await res.json();
+      try {
+        const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
 
-      const audits = data.lighthouseResult.audits;
-
-      const metrics = {
-        FCP: audits["first-contentful-paint"].numericValue,
-        LCP: audits["largest-contentful-paint"].numericValue,
-        TBT: audits["total-blocking-time"].numericValue,
-        CLS: audits["cumulative-layout-shift"].numericValue,
-        SI: audits["speed-index"].numericValue,
-        TTI: audits["interactive"].numericValue
-      };
-
-      const msToSec = val => (val / 1000).toFixed(2);
-      const rounded = val => Number(val).toFixed(2);
-
-      const tableHTML = `
-        <table>
-          <thead><tr><th>Metrica</th><th>Valore</th></tr></thead>
-          <tbody>
-            <tr><td>FCP</td><td>${msToSec(metrics.FCP)} s</td></tr>
-            <tr><td>LCP</td><td>${msToSec(metrics.LCP)} s</td></tr>
-            <tr><td>TBT</td><td>${msToSec(metrics.TBT)} s</td></tr>
-            <tr><td>CLS</td><td>${rounded(metrics.CLS)}</td></tr>
-            <tr><td>Speed Index</td><td>${msToSec(metrics.SI)} s</td></tr>
-            <tr><td>TTI</td><td>${msToSec(metrics.TTI)} s</td></tr>
-          </tbody>
-        </table>
-        <div class="chart-container">
-          <canvas id="chart"></canvas>
-        </div>
-      `;
-      document.getElementById("risultati").innerHTML = tableHTML;
-
-      new Chart(document.getElementById('chart'), {
-        type: 'bar',
-        data: {
-          labels: ['FCP', 'LCP', 'TBT', 'CLS', 'Speed Index', 'TTI'],
-          datasets: [{
-            label: 'Valori (s)',
-            data: [metrics.FCP, metrics.LCP, metrics.TBT, metrics.CLS * 1000, metrics.SI, metrics.TTI].map(v => v / 1000),
-            backgroundColor: '#3498db'
-          }]
+        if (!data.lighthouseResult || !data.lighthouseResult.audits) {
+          throw new Error(data.error?.message || "Dati non disponibili o limite API superato.");
         }
-      });
+
+        const audits = data.lighthouseResult.audits;
+
+        const metrics = {
+          "First Contentful Paint": audits["first-contentful-paint"].numericValue,
+          "Largest Contentful Paint": audits["largest-contentful-paint"].numericValue,
+          "Total Blocking Time": audits["total-blocking-time"].numericValue,
+          "Cumulative Layout Shift": audits["cumulative-layout-shift"].numericValue,
+          "Speed Index": audits["speed-index"].numericValue,
+          "Time to Interactive": audits["interactive"].numericValue
+        };
+
+        const weights = {
+          "First Contentful Paint": 0.1,
+          "Speed Index": 0.1,
+          "Largest Contentful Paint": 0.25,
+          "Time to Interactive": 0.1,
+          "Total Blocking Time": 0.3,
+          "Cumulative Layout Shift": 0.15
+        };
+
+        function normalize(value, good, ok) {
+          return value <= good ? 1 : value <= ok ? 0.5 : 0;
+        }
+
+        const normalized = {
+          "First Contentful Paint": normalize(metrics["First Contentful Paint"], 1800, 3000),
+          "Speed Index": normalize(metrics["Speed Index"], 3400, 5800),
+          "Largest Contentful Paint": normalize(metrics["Largest Contentful Paint"], 2500, 4000),
+          "Time to Interactive": normalize(metrics["Time to Interactive"], 3800, 7300),
+          "Total Blocking Time": normalize(metrics["Total Blocking Time"], 200, 600),
+          "Cumulative Layout Shift": normalize(metrics["Cumulative Layout Shift"], 0.1, 0.25)
+        };
+
+        let score = 0;
+        for (let metric in normalized) {
+          score += normalized[metric] * weights[metric];
+        }
+        score = Math.round(score * 100);
+
+        let scoreClass = "score-green";
+        if (score < 50) scoreClass = "score-red";
+        else if (score < 90) scoreClass = "score-yellow";
+
+        const msToSec = val => (val / 1000).toFixed(2);
+        const rounded = val => Number(val).toFixed(2);
+
+        const tableHTML = `
+          <div class="score-box ${scoreClass}">Punteggio Performance: ${score}/100</div>
+          <table>
+            <thead><tr><th>Metrica</th><th>Valore</th></tr></thead>
+            <tbody>
+              <tr><td>First Contentful Paint (FCP)</td><td>${msToSec(metrics["First Contentful Paint"])} s</td></tr>
+              <tr><td>Largest Contentful Paint (LCP)</td><td>${msToSec(metrics["Largest Contentful Paint"])} s</td></tr>
+              <tr><td>Total Blocking Time (TBT)</td><td>${msToSec(metrics["Total Blocking Time"])} s</td></tr>
+              <tr><td>Cumulative Layout Shift (CLS)</td><td>${rounded(metrics["Cumulative Layout Shift"])}</td></tr>
+              <tr><td>Speed Index (SI)</td><td>${msToSec(metrics["Speed Index"])} s</td></tr>
+              <tr><td>Time to Interactive (TTI)</td><td>${msToSec(metrics["Time to Interactive"])} s</td></tr>
+            </tbody>
+          </table>
+          <div class="chart-container">
+            <canvas id="chart"></canvas>
+          </div>
+        `;
+        document.getElementById("risultati").innerHTML = tableHTML;
+
+        new Chart(document.getElementById('chart'), {
+          type: 'bar',
+          data: {
+            labels: Object.keys(metrics),
+            datasets: [{
+              label: 'Valori (s)',
+              data: [
+                metrics["First Contentful Paint"],
+                metrics["Largest Contentful Paint"],
+                metrics["Total Blocking Time"],
+                metrics["Cumulative Layout Shift"] * 1000,
+                metrics["Speed Index"],
+                metrics["Time to Interactive"]
+              ].map(v => v / 1000),
+              backgroundColor: '#3498db'
+            }]
+          }
+        });
+
+      } catch (error) {
+        document.getElementById("risultati").innerHTML = `
+          <p style="color: red;"><strong>Errore:</strong> ${error.message}</p>
+        `;
+      }
     }
 
     async function scaricaPDF() {
