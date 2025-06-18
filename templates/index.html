@@ -2,50 +2,91 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SEO Audit Tool</title>
-  <link rel="stylesheet" href="/static/css/style.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEO Performance Audit</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #333; }
+    h1 { color: #2c3e50; }
+    input, button { padding: 0.6rem; margin: 0.5rem 0; width: 100%; max-width: 500px; }
+    button { background-color: #2980b9; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #1f6391; }
+    table { width: 100%; max-width: 800px; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 0.8rem; text-align: left; }
+    th { background-color: #f0f0f0; }
+    .chart-container { width: 100%; max-width: 600px; margin: 2rem 0; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>SEO Audit Tool</h1>
+  <h1>SEO Performance Audit Tool</h1>
+  <input type="text" id="url" placeholder="Inserisci l'URL da analizzare" />
+  <button onclick="analizzaPerformance()">Analizza</button>
+  <div id="risultati"></div>
+  <button onclick="scaricaPDF()">Scarica Report PDF</button>
 
-    <section>
-      <h2>Analisi PageSpeed</h2>
-      <input type="text" id="urlInput" placeholder="Inserisci URL">
-      <button onclick="runPerformance()">Analizza</button>
-      <pre id="performanceResult"></pre>
-    </section>
-  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    async function analizzaPerformance() {
+      const url = document.getElementById('url').value;
+      const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
 
-<script>
-function runPerformance() {
-  const url = document.getElementById("urlInput").value;
-  fetch("/api/performance?url=" + encodeURIComponent(url))
-    .then(res => {
-      if (!res.ok) {
-        console.error("⚠️ Errore HTTP:", res.status);
-        throw new Error("Errore nella chiamata PageSpeed");
-      }
-      return res.json();
-    })
-    .then(data => {
-      console.log("📊 Risposta PageSpeed:", data);
-      const perf = data?.lighthouseResult?.categories?.performance;
-      if (perf) {
-        document.getElementById("performanceResult").textContent =
-          JSON.stringify(perf, null, 2);
-      } else {
-        document.getElementById("performanceResult").textContent =
-          "❌ Dati PageSpeed non disponibili per questo URL.";
-      }
-    })
-    .catch(err => {
-      console.error("❌ Errore JS:", err);
-      document.getElementById("performanceResult").textContent =
-        "Errore: " + err.message;
-    });
-}
-</script>
+      const audits = data.lighthouseResult.audits;
+
+      const metrics = {
+        FCP: audits["first-contentful-paint"].numericValue,
+        LCP: audits["largest-contentful-paint"].numericValue,
+        TBT: audits["total-blocking-time"].numericValue,
+        CLS: audits["cumulative-layout-shift"].numericValue,
+        SI: audits["speed-index"].numericValue,
+        TTI: audits["interactive"].numericValue
+      };
+
+      const msToSec = val => (val / 1000).toFixed(2);
+      const rounded = val => Number(val).toFixed(2);
+
+      const tableHTML = `
+        <table>
+          <thead><tr><th>Metrica</th><th>Valore</th></tr></thead>
+          <tbody>
+            <tr><td>FCP</td><td>${msToSec(metrics.FCP)} s</td></tr>
+            <tr><td>LCP</td><td>${msToSec(metrics.LCP)} s</td></tr>
+            <tr><td>TBT</td><td>${msToSec(metrics.TBT)} s</td></tr>
+            <tr><td>CLS</td><td>${rounded(metrics.CLS)}</td></tr>
+            <tr><td>Speed Index</td><td>${msToSec(metrics.SI)} s</td></tr>
+            <tr><td>TTI</td><td>${msToSec(metrics.TTI)} s</td></tr>
+          </tbody>
+        </table>
+        <div class="chart-container">
+          <canvas id="chart"></canvas>
+        </div>
+      `;
+      document.getElementById("risultati").innerHTML = tableHTML;
+
+      new Chart(document.getElementById('chart'), {
+        type: 'bar',
+        data: {
+          labels: ['FCP', 'LCP', 'TBT', 'CLS', 'Speed Index', 'TTI'],
+          datasets: [{
+            label: 'Valori (s)',
+            data: [metrics.FCP, metrics.LCP, metrics.TBT, metrics.CLS * 1000, metrics.SI, metrics.TTI].map(v => v / 1000),
+            backgroundColor: '#3498db'
+          }]
+        }
+      });
+    }
+
+    async function scaricaPDF() {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      pdf.text("SEO Performance Report", 10, 10);
+      const rows = [...document.querySelectorAll("table tbody tr")].map(row => {
+        return [...row.children].map(cell => cell.innerText);
+      });
+      pdf.autoTable({ head: [['Metrica', 'Valore']], body: rows });
+      pdf.save("seo-report.pdf");
+    }
+  </script>
 </body>
 </html>
