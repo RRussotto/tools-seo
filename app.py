@@ -13,16 +13,26 @@ def performance():
     url = request.args.get("url")
     if not url:
         return jsonify({"error": "Missing URL"}), 400
+
+    api_key = os.environ.get("PAGESPEED_API_KEY")
+    if not api_key:
+        return jsonify({"error": "API Key non configurata"}), 500
+
     try:
         api_url = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
-        params = {"url": url, "strategy": "mobile"}
+        params = {
+            "url": url,
+            "strategy": "mobile",
+            "key": api_key
+        }
         r = requests.get(api_url, params=params)
-        print("📡 URL Richiesto:", url)
-        print("🔗 Endpoint chiamato:", r.url)
-        print("📥 Risposta ricevuta:", r.text[:300])  # solo primi 300 caratteri
-        return r.json(), r.status_code
+        data = r.json()
+        
+        if "error" in data:
+            return jsonify({"error": data["error"]["message"]}), 429
+
+        return data, r.status_code
     except Exception as e:
-        print("❌ ERRORE:", str(e))
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/keywords")
@@ -37,9 +47,3 @@ def keywords():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/gsc")
-def gsc():
-    return jsonify({"error": "Richiede autenticazione OAuth lato server."})
-
-if __name__ == "__main__":
-    app.run(debug=True)
