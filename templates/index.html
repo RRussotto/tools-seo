@@ -2,147 +2,78 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SEO Performance Audit</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #333; }
-    h1 { color: #2c3e50; }
-    input, button { padding: 0.6rem; margin: 0.5rem 0; width: 100%; max-width: 500px; }
-    button { background-color: #2980b9; color: white; border: none; cursor: pointer; }
-    button:hover { background-color: #1f6391; }
+    body { font-family: Arial, sans-serif; padding: 2rem; background-color: #f9f9f9; color: #333; }
+    input, select, button { padding: 0.6rem; margin: 0.5rem 0; width: 100%; max-width: 500px; }
+    button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
     table { width: 100%; max-width: 800px; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ddd; padding: 0.8rem; text-align: left; }
-    th { background-color: #f0f0f0; }
-    .chart-container { width: 100%; max-width: 600px; margin: 2rem 0; }
-    .score-box { font-size: 1.2rem; font-weight: bold; padding: 1rem; margin-top: 1rem; border-radius: 8px; display: inline-block; }
-    .score-green { background-color: #d4edda; color: #155724; }
-    .score-yellow { background-color: #fff3cd; color: #856404; }
-    .score-red { background-color: #f8d7da; color: #721c24; }
+    th, td { border: 1px solid #ccc; padding: 0.8rem; text-align: left; }
+    th { background-color: #eee; }
+    .status { padding: 0.3rem 0.6rem; border-radius: 4px; color: #fff; font-weight: bold; }
+    .green { background-color: #28a745; }
+    .yellow { background-color: #ffc107; color: #000; }
+    .red { background-color: #dc3545; }
+    .score { font-size: 1.5rem; margin-top: 1rem; }
   </style>
 </head>
 <body>
   <h1>SEO Performance Audit Tool</h1>
-  <input type="text" id="url" placeholder="Inserisci l'URL da analizzare" />
-  <button onclick="analizzaPerformance()">Analizza</button>
-  <div id="risultati"></div>
-  <button onclick="scaricaPDF()">Scarica Report PDF</button>
+  <input type="text" id="url" placeholder="Inserisci l'URL da analizzare"/>
+  <select id="strategy">
+    <option value="mobile">Mobile</option>
+    <option value="desktop">Desktop</option>
+  </select>
+  <button onclick="analizza()">Analizza</button>
+  <div id="output"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script>
-    async function analizzaPerformance() {
-      const url = document.getElementById('url').value;
-      try {
-        const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}`);
-        const data = await res.json();
-
-        if (!data.lighthouseResult || !data.lighthouseResult.audits) {
-          throw new Error(data.error?.message || "Dati non disponibili o limite API superato.");
-        }
-
-        const audits = data.lighthouseResult.audits;
-
-        const metrics = {
-          "First Contentful Paint": audits["first-contentful-paint"].numericValue,
-          "Largest Contentful Paint": audits["largest-contentful-paint"].numericValue,
-          "Total Blocking Time": audits["total-blocking-time"].numericValue,
-          "Cumulative Layout Shift": audits["cumulative-layout-shift"].numericValue,
-          "Speed Index": audits["speed-index"].numericValue,
-          "Time to Interactive": audits["interactive"].numericValue
-        };
-
-        const weights = {
-          "First Contentful Paint": 0.1,
-          "Speed Index": 0.1,
-          "Largest Contentful Paint": 0.25,
-          "Time to Interactive": 0.1,
-          "Total Blocking Time": 0.3,
-          "Cumulative Layout Shift": 0.15
-        };
-
-        function normalize(value, good, ok) {
-          return value <= good ? 1 : value <= ok ? 0.5 : 0;
-        }
-
-        const normalized = {
-          "First Contentful Paint": normalize(metrics["First Contentful Paint"], 1800, 3000),
-          "Speed Index": normalize(metrics["Speed Index"], 3400, 5800),
-          "Largest Contentful Paint": normalize(metrics["Largest Contentful Paint"], 2500, 4000),
-          "Time to Interactive": normalize(metrics["Time to Interactive"], 3800, 7300),
-          "Total Blocking Time": normalize(metrics["Total Blocking Time"], 200, 600),
-          "Cumulative Layout Shift": normalize(metrics["Cumulative Layout Shift"], 0.1, 0.25)
-        };
-
-        let score = 0;
-        for (let metric in normalized) {
-          score += normalized[metric] * weights[metric];
-        }
-        score = Math.round(score * 100);
-
-        let scoreClass = "score-green";
-        if (score < 50) scoreClass = "score-red";
-        else if (score < 90) scoreClass = "score-yellow";
-
-        const msToSec = val => (val / 1000).toFixed(2);
-        const rounded = val => Number(val).toFixed(2);
-
-        const tableHTML = `
-          <div class="score-box ${scoreClass}">Punteggio Performance: ${score}/100</div>
-          <table>
-            <thead><tr><th>Metrica</th><th>Valore</th></tr></thead>
-            <tbody>
-              <tr><td>First Contentful Paint (FCP)</td><td>${msToSec(metrics["First Contentful Paint"])} s</td></tr>
-              <tr><td>Largest Contentful Paint (LCP)</td><td>${msToSec(metrics["Largest Contentful Paint"])} s</td></tr>
-              <tr><td>Total Blocking Time (TBT)</td><td>${msToSec(metrics["Total Blocking Time"])} s</td></tr>
-              <tr><td>Cumulative Layout Shift (CLS)</td><td>${rounded(metrics["Cumulative Layout Shift"])}</td></tr>
-              <tr><td>Speed Index (SI)</td><td>${msToSec(metrics["Speed Index"])} s</td></tr>
-              <tr><td>Time to Interactive (TTI)</td><td>${msToSec(metrics["Time to Interactive"])} s</td></tr>
-            </tbody>
-          </table>
-          <div class="chart-container">
-            <canvas id="chart"></canvas>
-          </div>
-        `;
-        document.getElementById("risultati").innerHTML = tableHTML;
-
-        new Chart(document.getElementById('chart'), {
-          type: 'bar',
-          data: {
-            labels: Object.keys(metrics),
-            datasets: [{
-              label: 'Valori (s)',
-              data: [
-                metrics["First Contentful Paint"],
-                metrics["Largest Contentful Paint"],
-                metrics["Total Blocking Time"],
-                metrics["Cumulative Layout Shift"] * 1000,
-                metrics["Speed Index"],
-                metrics["Time to Interactive"]
-              ].map(v => v / 1000),
-              backgroundColor: '#3498db'
-            }]
-          }
-        });
-
-      } catch (error) {
-        document.getElementById("risultati").innerHTML = `
-          <p style="color: red;"><strong>Errore:</strong> ${error.message}</p>
-        `;
-      }
+    function getStatus(value, thresholds) {
+      if (value <= thresholds.green) return "green";
+      if (value <= thresholds.yellow) return "yellow";
+      return "red";
     }
 
-    async function scaricaPDF() {
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF();
-      pdf.text("SEO Performance Report", 10, 10);
-      const rows = [...document.querySelectorAll("table tbody tr")].map(row => {
-        return [...row.children].map(cell => cell.innerText);
+    async function analizza() {
+      const url = document.getElementById('url').value;
+      const strategy = document.getElementById('strategy').value;
+      const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}&strategy=${strategy}`);
+      const data = await res.json();
+      const audits = data.lighthouseResult.audits;
+
+      const metrics = [
+        { id: "first-contentful-paint", label: "First Contentful Paint (FCP)", unit: "s", thresholds: { green: 1.8, yellow: 3.0 } },
+        { id: "largest-contentful-paint", label: "Largest Contentful Paint (LCP)", unit: "s", thresholds: { green: 2.5, yellow: 4.0 } },
+        { id: "total-blocking-time", label: "Total Blocking Time (TBT)", unit: "ms", thresholds: { green: 200, yellow: 600 } },
+        { id: "cumulative-layout-shift", label: "Cumulative Layout Shift (CLS)", unit: "", thresholds: { green: 0.1, yellow: 0.25 } },
+        { id: "speed-index", label: "Speed Index", unit: "s", thresholds: { green: 3.4, yellow: 5.8 } },
+        { id: "interactive", label: "Time to Interactive (TTI)", unit: "s", thresholds: { green: 3.8, yellow: 7.3 } }
+      ];
+
+      let table = "<table><thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead><tbody>";
+
+      metrics.forEach(metric => {
+        let value = audits[metric.id].numericValue;
+        let displayValue = metric.unit === "s" ? (value / 1000).toFixed(2) + " s" :
+                           metric.unit === "ms" ? value.toFixed(0) + " ms" :
+                           value.toFixed(2);
+        const status = getStatus(metric.unit === "s" || metric.unit === "ms" ? value / 1000 : value, metric.thresholds);
+        table += `<tr><td>${metric.label}</td><td>${displayValue}</td><td><span class="status ${status}">${status.toUpperCase()}</span></td></tr>`;
       });
-      pdf.autoTable({ head: [['Metrica', 'Valore']], body: rows });
-      pdf.save("seo-report.pdf");
+
+      table += "</tbody></table>";
+
+      const score = Math.round(data.lighthouseResult.categories.performance.score * 100);
+      const scoreColor = score >= 90 ? "green" : score >= 50 ? "yellow" : "red";
+
+      document.getElementById("output").innerHTML = `
+        <div class="score">Punteggio ${strategy.charAt(0).toUpperCase() + strategy.slice(1)}: 
+          <span class="status ${scoreColor}">${score}/100</span></div>${table}
+      `;
     }
   </script>
 </body>
 </html>
+
