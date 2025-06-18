@@ -2,129 +2,159 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Audit SEO Performance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEO Performance Audit</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
-    h1 { margin-bottom: 10px; }
-    .loader-bar {
-      width: 100%;
-      background-color: #ddd;
-      height: 10px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 10px;
-    }
-    .loader-fill {
-      height: 100%;
-      width: 0;
-      background-color: #4caf50;
-      animation: loadProgress 50s linear forwards;
-    }
-    @keyframes loadProgress {
-      0% { width: 0; }
-      100% { width: 100%; }
-    }
-    .note { font-size: 0.95em; color: #555; margin-bottom: 20px; }
-    .switch-buttons { margin-top: 20px; }
-    .switch-buttons button {
-      margin-right: 10px;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .active-tab { background-color: #4caf50; color: white; }
-    .inactive-tab { background-color: #e0e0e0; color: #333; }
-    table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; display: none; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ccc; }
-    .badge { padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.9em; }
-    .badge-ok { background: #e0f9e0; color: #0a700a; }
-    .badge-mid { background: #fff9e0; color: #a08a00; }
-    .badge-bad { background: #fde0e0; color: #a70000; }
-    .btn-pdf {
-      display: inline-block;
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: #333;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      text-decoration: none;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .form-wrapper { margin-bottom: 20px; }
-    input[type="text"] {
-      padding: 10px;
-      width: 70%;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-right: 10px;
-    }
-    button#analyze {
-      padding: 10px 20px;
-      background-color: #0077cc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+    body { font-family: 'Segoe UI', sans-serif; margin: 2rem; background: #f0f2f5; color: #333; }
+    h1 { color: #2c3e50; font-size: 2rem; margin-bottom: 0.3rem; }
+    .subtitle { font-size: 1rem; color: #666; margin-bottom: 1rem; }
+    input, select, button { padding: 0.8rem; margin: 0.5rem 0; width: 100%; max-width: 500px; border-radius: 8px; border: 1px solid #ccc; }
+    button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+    button:hover { background-color: #0056b3; }
+    table { width: 100%; max-width: 900px; border-collapse: collapse; margin-top: 1rem; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #e0e0e0; padding: 0.9rem; text-align: left; }
+    th { background-color: #f7f7f7; }
+    .chart-container { width: 100%; max-width: 700px; margin: 2rem 0; }
+    .score-box { font-size: 1.3rem; font-weight: bold; padding: 1rem; margin-top: 1rem; border-radius: 8px; display: inline-block; }
+    .score-green { background-color: #d4edda; color: #155724; }
+    .score-yellow { background-color: #fff3cd; color: #856404; }
+    .score-red { background-color: #f8d7da; color: #721c24; }
   </style>
 </head>
 <body>
-  <h1>Audit Performance SEO - Velocità di caricamento del tuo sito web</h1>
+  <h1>SEO Performance Audit Tool</h1>
+  <div class="subtitle">Attendere il caricamento dei dati (circa 50 secondi)...</div>
+  <input type="text" id="url" placeholder="Inserisci l'URL da analizzare" />
+  <select id="strategy">
+    <option value="mobile">Mobile</option>
+    <option value="desktop">Desktop</option>
+  </select>
+  <button onclick="analizzaPerformance()">Analizza</button>
+  <div id="risultati"></div>
+  <button onclick="scaricaPDF()">Scarica Report PDF</button>
 
-  <div class="form-wrapper">
-    <input type="text" id="url" placeholder="Inserisci il dominio (es: esempio.it)" />
-    <button id="analyze">Analizza</button>
-  </div>
-
-  <div class="loader-bar"><div class="loader-fill"></div></div>
-  <div class="note">Attendere il caricamento dei dati (circa 50 secondi)...</div>
-
-  <div class="switch-buttons">
-    <button class="active-tab" onclick="switchTable('mobile')">Mobile</button>
-    <button class="inactive-tab" onclick="switchTable('desktop')">Desktop</button>
-  </div>
-
-  <table id="table-mobile">
-    <thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead>
-    <tbody>
-      <tr><td>First Contentful Paint (FCP)</td><td>3.4 s</td><td><span class="badge badge-bad">Critico / Da ottimizzare</span></td></tr>
-      <tr><td>Largest Contentful Paint (LCP)</td><td>2.5 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
-      <tr><td>Total Blocking Time (TBT)</td><td>150 ms</td><td><span class="badge badge-ok">Ottimale</span></td></tr>
-      <tr><td>Speed Index</td><td>5.7 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
-      <tr><td>Time to Interactive (TTI)</td><td>8.1 s</td><td><span class="badge badge-bad">Critico / Da ottimizzare</span></td></tr>
-    </tbody>
-  </table>
-
-  <table id="table-desktop">
-    <thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead>
-    <tbody>
-      <tr><td>First Contentful Paint (FCP)</td><td>1.8 s</td><td><span class="badge badge-ok">Ottimale</span></td></tr>
-      <tr><td>Largest Contentful Paint (LCP)</td><td>2.2 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
-      <tr><td>Total Blocking Time (TBT)</td><td>120 ms</td><td><span class="badge badge-ok">Ottimale</span></td></tr>
-      <tr><td>Speed Index</td><td>4.1 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
-      <tr><td>Time to Interactive (TTI)</td><td>5.5 s</td><td><span class="badge badge-mid">Migliorabile</span></td></tr>
-    </tbody>
-  </table>
-
-  <button class="btn-pdf" onclick="window.print()">Scarica in PDF</button>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script>
-    function switchTable(mode) {
-      document.getElementById('table-mobile').style.display = mode === 'mobile' ? 'table' : 'none';
-      document.getElementById('table-desktop').style.display = mode === 'desktop' ? 'table' : 'none';
-      const buttons = document.querySelectorAll('.switch-buttons button');
-      buttons.forEach(btn => {
-        btn.className = 'inactive-tab';
-      });
-      document.querySelector(`.switch-buttons button[onclick*="${mode}"]`).className = 'active-tab';
+    async function analizzaPerformance() {
+      const url = document.getElementById('url').value;
+      const strategy = document.getElementById('strategy').value;
+      try {
+        const res = await fetch(`/api/performance?url=${encodeURIComponent(url)}&strategy=${strategy}`);
+        const data = await res.json();
+
+        if (!data.lighthouseResult || !data.lighthouseResult.audits) {
+          throw new Error(data.error?.message || "Dati non disponibili o limite API superato.");
+        }
+
+        const audits = data.lighthouseResult.audits;
+
+        const metrics = {
+          "First Contentful Paint": audits["first-contentful-paint"].numericValue,
+          "Largest Contentful Paint": audits["largest-contentful-paint"].numericValue,
+          "Total Blocking Time": audits["total-blocking-time"].numericValue,
+          "Cumulative Layout Shift": audits["cumulative-layout-shift"].numericValue,
+          "Speed Index": audits["speed-index"].numericValue,
+          "Time to Interactive": audits["interactive"].numericValue
+        };
+
+        const weights = {
+          "First Contentful Paint": 0.1,
+          "Speed Index": 0.1,
+          "Largest Contentful Paint": 0.25,
+          "Time to Interactive": 0.1,
+          "Total Blocking Time": 0.3,
+          "Cumulative Layout Shift": 0.15
+        };
+
+        function normalize(value, good, ok) {
+          return value <= good ? 1 : value <= ok ? 0.5 : 0;
+        }
+
+        const normalized = {
+          "First Contentful Paint": normalize(metrics["First Contentful Paint"], 1800, 3000),
+          "Speed Index": normalize(metrics["Speed Index"], 3400, 5800),
+          "Largest Contentful Paint": normalize(metrics["Largest Contentful Paint"], 2500, 4000),
+          "Time to Interactive": normalize(metrics["Time to Interactive"], 3800, 7300),
+          "Total Blocking Time": normalize(metrics["Total Blocking Time"], 200, 600),
+          "Cumulative Layout Shift": normalize(metrics["Cumulative Layout Shift"], 0.1, 0.25)
+        };
+
+        let score = 0;
+        for (let metric in normalized) {
+          score += normalized[metric] * weights[metric];
+        }
+        score = Math.round(score * 100);
+
+        let scoreClass = "score-green";
+        if (score < 50) scoreClass = "score-red";
+        else if (score < 90) scoreClass = "score-yellow";
+
+        function labelStatus(n) {
+          return n === 1 ? 'Ottimale' : n === 0.5 ? 'Migliorabile' : 'Critico';
+        }
+
+        const msToSec = val => (val / 1000).toFixed(2);
+        const rounded = val => Number(val).toFixed(2);
+
+        const tableHTML = `
+          <div class="score-box ${scoreClass}">Punteggio Performance (${strategy}): ${score}/100</div>
+          <table>
+            <thead><tr><th>Metrica</th><th>Valore</th><th>Valutazione</th></tr></thead>
+            <tbody>
+              <tr><td>First Contentful Paint (FCP)</td><td>${msToSec(metrics["First Contentful Paint"])} s</td><td>${labelStatus(normalized["First Contentful Paint"])}</td></tr>
+              <tr><td>Largest Contentful Paint (LCP)</td><td>${msToSec(metrics["Largest Contentful Paint"])} s</td><td>${labelStatus(normalized["Largest Contentful Paint"])}</td></tr>
+              <tr><td>Total Blocking Time (TBT)</td><td>${msToSec(metrics["Total Blocking Time"])} s</td><td>${labelStatus(normalized["Total Blocking Time"])}</td></tr>
+              <tr><td>Cumulative Layout Shift (CLS)</td><td>${rounded(metrics["Cumulative Layout Shift"])}</td><td>${labelStatus(normalized["Cumulative Layout Shift"])}</td></tr>
+              <tr><td>Speed Index (SI)</td><td>${msToSec(metrics["Speed Index"])} s</td><td>${labelStatus(normalized["Speed Index"])}</td></tr>
+              <tr><td>Time to Interactive (TTI)</td><td>${msToSec(metrics["Time to Interactive"])} s</td><td>${labelStatus(normalized["Time to Interactive"])}</td></tr>
+            </tbody>
+          </table>
+          <div class="chart-container">
+            <canvas id="chart"></canvas>
+          </div>
+        `;
+        document.getElementById("risultati").innerHTML = tableHTML;
+
+        new Chart(document.getElementById('chart'), {
+          type: 'bar',
+          data: {
+            labels: Object.keys(metrics),
+            datasets: [{
+              label: 'Valori (s)',
+              data: [
+                metrics["First Contentful Paint"],
+                metrics["Largest Contentful Paint"],
+                metrics["Total Blocking Time"],
+                metrics["Cumulative Layout Shift"] * 1000,
+                metrics["Speed Index"],
+                metrics["Time to Interactive"]
+              ].map(v => v / 1000),
+              backgroundColor: '#3498db'
+            }]
+          }
+        });
+
+      } catch (error) {
+        document.getElementById("risultati").innerHTML = `
+          <p style="color: red;"><strong>Errore:</strong> ${error.message}</p>
+        `;
+      }
     }
-    switchTable('mobile');
+
+    async function scaricaPDF() {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      pdf.text("SEO Performance Report", 10, 10);
+      const rows = [...document.querySelectorAll("table tbody tr")].map(row => {
+        return [...row.children].map(cell => cell.innerText);
+      });
+      pdf.autoTable({ head: [['Metrica', 'Valore', 'Valutazione']], body: rows });
+      pdf.save("seo-report.pdf");
+    }
   </script>
 </body>
 </html>
+
