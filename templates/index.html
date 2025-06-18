@@ -16,31 +16,34 @@
       <button onclick="runPerformance()">Analizza</button>
       <pre id="performanceResult"></pre>
     </section>
-
-    <section>
-      <h2>Keyword Suggestion</h2>
-      <input type="text" id="keywordInput" placeholder="Parola chiave">
-      <button onclick="runKeyword()">Suggerisci</button>
-      <pre id="keywordResult"></pre>
-    </section>
   </div>
 
 <script>
 function runPerformance() {
   const url = document.getElementById("urlInput").value;
   fetch("/api/performance?url=" + encodeURIComponent(url))
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) {
+        console.error("⚠️ Errore HTTP:", res.status);
+        throw new Error("Errore nella chiamata PageSpeed");
+      }
+      return res.json();
+    })
     .then(data => {
-      document.getElementById("performanceResult").textContent = JSON.stringify(data.lighthouseResult.categories.performance, null, 2);
-    });
-}
-
-function runKeyword() {
-  const query = document.getElementById("keywordInput").value;
-  fetch("/api/keywords?query=" + encodeURIComponent(query))
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById("keywordResult").textContent = JSON.stringify(data.keyword, null, 2);
+      console.log("📊 Risposta PageSpeed:", data);
+      const perf = data?.lighthouseResult?.categories?.performance;
+      if (perf) {
+        document.getElementById("performanceResult").textContent =
+          JSON.stringify(perf, null, 2);
+      } else {
+        document.getElementById("performanceResult").textContent =
+          "❌ Dati PageSpeed non disponibili per questo URL.";
+      }
+    })
+    .catch(err => {
+      console.error("❌ Errore JS:", err);
+      document.getElementById("performanceResult").textContent =
+        "Errore: " + err.message;
     });
 }
 </script>
